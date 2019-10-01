@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Scope;
 
 /**
  * Created by xuke
- * Description:
+ * Description: 验证bean的生命周期，集合bean下面的三各类来看：LifeCycle/LifeCycle02/DefinedBeanLifeCycle
  * Date: 2019-01-19
  * Time: 16:39
  */

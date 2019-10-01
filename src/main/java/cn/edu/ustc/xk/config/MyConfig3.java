@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * Created by xuke
- * Description:
+ * Description: 搭配着condition下面的两个类(WindowsCondition和LinuxCondition)来看
  * Date: 2019-01-18
  * Time: 19:16
  */

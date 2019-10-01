@@ -26,6 +26,7 @@ hs_err_pid*
 *.idea
 *.iml
 
-src/main/resources/
-src/test/
-target/generated-sources/
+# src/main/resources/
+# src/test/
+# target/generated-sources/
+# target/generated-test-sources/
