@@ -1,5 +1,6 @@
 package cn.edu.ustc.xk.config;
 
+import cn.edu.ustc.xk.bean.Blue;
 import cn.edu.ustc.xk.dao.BookDAO;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
@@ -25,4 +26,11 @@ public class MainConfigOfAutowired {
         bookDAO.setLabel(2);
         return bookDAO;
     }
+
+    // 用来测试：自定义的组件如果想要使用Spring容器底层的一些组件
+    @Bean
+    public Blue blue(){
+        return new Blue();
+    }
+
 }
