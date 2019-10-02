@@ -70,8 +70,10 @@ import org.springframework.context.annotation.Scope;
  *          }
  *
  *  Spring底层对BeanPostProcessor的使用：
- *           1.） ApplicationContextAwareProcessor：帮我们在组件里面注册IOC容器。具体实现的话我们只需要让组件实现ApplicationContextAware接口就行
+ *          1.）ApplicationContextAwareProcessor：帮我们在组件里面注册IOC容器。具体实现的话我们只需要让组件实现ApplicationContextAware接口就行
  *                                                 实现里面的setApplicationContext方法，然后将我们的IOC容器保存起来就行。这些操作都是由该处理器完成的。
+ *                                                 当该组件要用到ApplicationContext组件的时候，IOC容器启动时会在帮我们创建该组件的时候，
+ *                                                 同时利用setApplicationContext方法创建一个ApplicationContext对象。
  *          2.）InitDestroyAnnotationBeanPostProcessor：它其实就是用来处理@PostConstruct注解和@PreDestroy注解的；
  *          3.）AutowiredAnnotationBeanPostProcessor：处理我们的自动装配值注解@Autowired注解的；
  *          4.）AsyncAnnotationBeanPostProcessor：处理@Asyc注解的。

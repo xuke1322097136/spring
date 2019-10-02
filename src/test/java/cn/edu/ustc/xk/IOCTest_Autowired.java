@@ -22,7 +22,7 @@ import java.util.Arrays;
  *          b.) 如果找到了多个相同类型的组件，接着将属性的名称(即BookService中的属性名称)作为组件的id去容器中查找对应的bean。
  *              即，此时相当于调用的是ioc.getBean("bookDAO")。因为此时BookService中定义的是private BookDAO bookDAO;
  *          c.) 当我们使用@Qualifer来指定使用哪个bean的时候，将不再根据属性的名称指定了，此时根据的是@Qualifer里面
- *              指定的组件id值来查找对应的bean。
+ *              指定的组件id值(其实就是名字)来查找对应的bean。
  *          d.) 利用@Autowired实现自动装配的时候，自动装配一定要将属性赋好值，不然会报错。即，此例子中的BookService中
  *              使用的bookDAO一定是要装配好的。其实，这句话的意思其实是@Autowired里面的属性值required默认的是true，但是，
  *              我们如果想找得到就装配属性bookDAO，找不到对应的bean我们就不装配，我们就要将required设置成false。
@@ -33,9 +33,26 @@ import java.util.Arrays;
  *     III) 注解@Inject(JSR330规范)，这个也是Java规范的注解。它也可以实现@Autowired一样的注入功能，它是可以支持@Primary注解
  *         但是不支持@Autowired(required = false)。
  *
- *       拓展：其实这上面的三个注解都是由 AutowiredAnnotationBeanPostProcessor 后置处理器来完成的自动装配功能，
+ *      IV) 拓展：其实这上面的三个注解都是由 AutowiredAnnotationBeanPostProcessor 后置处理器来完成的自动装配功能，
  *             包括@Value/@Lookup等注解都是由这个后置处理器来解析完成自动装配功能的。至于后置处理器的原理，我们可以
  *             查看MainConfigOfLifeCycle里面的解释或者再打个断点接着看看具体细节。
+ *
+ *    V ) 注解 @Autowired还可以用在【构造器】、【参数】、【方法】以及【属性】上，其实都是从容器中获取到参数组件的值。
+ *      1）标注在setter方法上或者是@Bean标注的方法创建对象+方法参数，第二种方法中的参数所代表的组件默认都是从容器中获取，
+ *         默认情况下不写@Autowired， 效果也是一样的，都能自动获取；
+ *      2）标注在构造器上，如果组件只有一个有参构造器，这个有参构造器的注解 @Autowired也可以省略，参数位置的组件也可以
+ *         自动从容器中获取。一般情况下，默认在加载ioc容器中的组件时，容器启动会调用无参构造器（只有午餐构造器）创建对象，
+ *         再对这个类里面的其他组件进行初始化、 赋值操作等；
+ *      3) 放置在参数的位置上，其实上面两种情况都穿插着讲了一些了。
+ *
+ *    VI) 自定义的组件如果想要使用Spring容器底层的一些组件(ApplicationContext/BeanFactory/...)，那么我们可以让自定义的组件
+ *          实现相对应组件的XXXAware，在创建自定义对象的时候，会调用接口规定的方法（回调的形式）来完成相关组件的注入，从而
+ *          将Spring底层的一些组件注入到自定义的Bean当中。相对应的，XXXAware其实是通过XXXAwareProcessor来完成注入的。
+ *          如：ApplicationContextAware  ==> ApplicationContextAwareProcessor来完成注入。具体可以实现的接口可以查看
+ *          Aware下面的接口。可以看下面的实验7.
+ *          可以看到，我们在创建blue这个组件的时候，就会通过回调的方式来创建里面对应的ApplicationContext等组件。具体的原因
+ *          可以查看ApplicationContextAwareProcessor（实现了BeanPostProcessor）类中的invokeAwareInterfaces方法中的
+ *          最后一行代码可以看到会对我们重写的这个方法进行回调。
  * <p>
  *
  *
@@ -67,7 +84,9 @@ import java.util.Arrays;
  *     6. 测试@Inject注解，此时我们需要导入支持@Inject注解的依赖，@Resource注解则不需要从maven仓库中导入依赖。我们
  *        把@Resource注解给注释掉，加上@Inject注解，但是没有注释掉@Primary注解，可以看到@Primary注解还是能起作用的，因为最后的
  *        输出结果为BookService{bookDAO=BookDAO{label=2}}。
-
+ *
+ *     7. 验证XXXAware接口如何完成自动注入，即，自定义的组件如果想要使用Spring容器底层的一些组件。我们利用bean包下面的Blue
+ *        这个类来做实验。可以看到在注入blue组件的时候，Spring底层的一些组件也附带注册进去了。
  */
 public class IOCTest_Autowired {
 
@@ -87,7 +106,6 @@ public class IOCTest_Autowired {
 //            System.out.println(bookDAO);
 
             System.out.println("......................");
-
 
         }
     }
