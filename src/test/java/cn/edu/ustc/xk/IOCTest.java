@@ -17,7 +17,8 @@ public class IOCTest {
 
     @Test
     public void test01() {
-        AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext(MyConfig.class);
+        AnnotationConfigApplicationContext applicationContext =
+                new AnnotationConfigApplicationContext(MyConfig.class);
         /**
          * 测试批量扫描@ComponentScan(只含value值，其他的excludeFilters，includeFilters等不指定的时候)：
          * 得到容器中所有的bean的名字：myConfig，bookController，bookDAO，bookService.（注意：它们都是类名的首字母小写形式）
@@ -46,7 +47,8 @@ public class IOCTest {
          *         Object bean2 = applicationContext.getBean("person");
          *         System.out.println(bean1 == bean2);
          */
-        AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext(MyConfig2.class);
+        AnnotationConfigApplicationContext applicationContext =
+                new AnnotationConfigApplicationContext(MyConfig2.class);
         System.out.println("IOC容器初始化完成");
         Object bean1 = applicationContext.getBean("person");
         Object bean2 = applicationContext.getBean("person");
@@ -55,7 +57,8 @@ public class IOCTest {
 
     @Test
     public void test03() {
-        AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext(MyConfig3.class);
+        AnnotationConfigApplicationContext applicationContext =
+                new AnnotationConfigApplicationContext(MyConfig3.class);
         // 获得Person类型的bean
         String[] names = applicationContext.getBeanNamesForType(Person.class);
         for (String name: names) {
@@ -71,7 +74,8 @@ public class IOCTest {
     // 测试@Import注解
     @Test
     public void testImport() {
-        AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext(MyConfig4.class);
+        AnnotationConfigApplicationContext applicationContext =
+                new AnnotationConfigApplicationContext(MyConfig4.class);
 
         String[] definitionNames = applicationContext.getBeanDefinitionNames();
         for (String definitionName : definitionNames) {
@@ -81,7 +85,8 @@ public class IOCTest {
 
     @Test
     public void test05() {
-        AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext(MyConfig5.class);
+        AnnotationConfigApplicationContext applicationContext =
+                new AnnotationConfigApplicationContext(MyConfig5.class);
         /**
          *  使用Spring提供的FactoryBean（工厂Bean），调用getObject()方法返回的对象T（泛型T就是我们要返回什么类型的对象），将该对象放入到容器中。
          *  在我们的例子中，看着我们装配的是colorFactoryBean类型的bean，但是实际上装配的却是泛型指定的类型，即Color类型的。
@@ -113,7 +118,8 @@ public class IOCTest {
      @Test
     public void testLifeCycle() {
 
-        AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext(MainConfigOfLifeCycle.class);
+        AnnotationConfigApplicationContext applicationContext =
+                new AnnotationConfigApplicationContext(MainConfigOfLifeCycle.class);
          System.out.println("容器初始化完成");
 
         // applicationContext.getBean("lifeCycle");
@@ -127,7 +133,8 @@ public class IOCTest {
     @Test
     public void testDefinedBeanLifeCycle() {
 
-        AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext(MainConfigOfLifeCycle.class);
+        AnnotationConfigApplicationContext applicationContext =
+                new AnnotationConfigApplicationContext(MainConfigOfLifeCycle.class);
         System.out.println("容器初始化完成");
 
         applicationContext.close();
@@ -138,7 +145,8 @@ public class IOCTest {
     @Test
     public void testLifeCycle02() {
 
-        AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext(MainConfigOfLifeCycle.class);
+        AnnotationConfigApplicationContext applicationContext =
+                new AnnotationConfigApplicationContext(MainConfigOfLifeCycle.class);
         System.out.println("容器初始化完成");
 
         applicationContext.close();
