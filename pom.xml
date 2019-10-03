@@ -17,6 +17,11 @@
             <version>5.1.3.RELEASE</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-aspects</artifactId>
+            <version>5.1.3.RELEASE</version>
+        </dependency>
         <!-- 到maven仓库中导入lombok的依赖
          https://mvnrepository.com/artifact/org.projectlombok/lombok -->
         <dependency>
