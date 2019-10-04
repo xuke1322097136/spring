@@ -25,7 +25,8 @@ public class MyBeanPostProcessor implements BeanPostProcessor {
     public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
         System.out.println("postProcessBeforeInitialization........." + beanName + "----->" + bean);
 
-        // 源码里面关于返回值的说明：@return the bean instance to use, either the original（原来的bean） or a wrapped one（包装之后的bean）;
+        // 源码里面关于返回值的说明：@return the bean instance to use, either the original（原来的bean）
+        //                         or a wrapped one（包装之后的bean）;
         // 我们在这直接返回原始的bean
         return bean;
     }
