@@ -1,0 +1,123 @@
+AOP原理：（我们结合LogAspects/MathCalculator/MainConfigOfAop这三个类来完成分析）
+1. 首先从@EnableAspectJAutoProxy注解入手：
+    可以看到@EnableAspectJAutoProxy里面有一个@Import(AspectJAutoProxyRegistrar.class)，它的目的是给容器中导入
+     AspectJAutoProxyRegistrar，而该类又是一个ImportBeanDefinitionRegistrar接口，看到这个接口，我们之前好像见过，
+     参考MyConfig4里面，我们是如何导入自定义的bean组件的。
+     至于它给容器中注入了什么bean，我们可以在registerBeanDefinitions
+     方法上打一个断点，以debug的模式运行IOCTest_AOP类，从该方法的第一步registerAspectJAnnotationAutoProxyCreatorIfNecessary
+     方法跟进去，一步一步跟到方法registerOrEscalateApcAsRequired，此时我们可以看到它注册了一个bean:
+
+      internalAutoProxyCreator(bean的名字，即：AUTO_PROXY_CREATOR_BEAN_NAME)    =》
+      AnnotationAwareAspectJAutoProxyCreator(bean的类型，翻译过来叫：注解装配模式的切面自动代理创建器)
+
+2. 接下来我们分析AnnotationAwareAspectJAutoProxyCreator这个组件，这个组件什么时候工作，工作时候的功能是啥？
+   我们先看看这个组件的继承关系：
+     AnnotationAwareAspectJAutoProxyCreator
+       -》 AspectJAwareAdvisorAutoProxyCreator
+           -》 AbstractAdvisorAutoProxyCreator
+              -》 AbstractAutoProxyCreator
+                 -》 SmartInstantiationAwareBeanPostProcessor，BeanFactoryAware(XXXBeanPostProcessor是我们比较熟悉的)
+     接下来，我们就关注这个BeanPostProcessor，所谓BeanPostProcessor其实就是bean完成初始化前后所做的事情。可以参见我们之前的
+     MyBeanPostProcessor和MainConfigOfLifeCycle里面怼后置处理器的解释。而BeanFactoryAware的作用是自动注入BeanFactory的。
+     下面我们分析源码的时候，应该是从AbstractAutoProxyCreator开始，而不是直接就在AnnotationAwareAspectJAutoProxyCreator里面
+     打断点，因为AbstractAutoProxyCreator才是离后置处理器最近的，一般后置处理器里面的方法在该类中也才会有，相反，你如果直接去
+     找AnnotationAwareAspectJAutoProxyCreator类的话，你不知道断点打在哪里。
+     既然AbstractAutoProxyCreator实现了BeanFactoryAware，肯定有setBeanFactory方法，往下翻源码的时候，果然找到了，所以可以
+     在这个方法上打一个断点，同理，它肯定也有跟后置处理器相关的方法，我们可以找到postProcessBeforeInstantiation方法和
+     postProcessAfterInstantiation方法（找到那些有业务逻辑的方法，只是返回一个true/bean什么的就直接略过）。我们可以在这两个
+     方法都打上断点。
+
+     接下来往上走走，看看子类AbstractAdvisorAutoProxyCreator，可以看到该类又重写了setBeanFactory方法，可以看到该方法里面
+     会调用一个initBeanFactory方法，即：setBeanFactory方法 -》 initBeanFactory方法。然后该类里面没有跟后置处理器相关的方法了。
+
+     我们接下来继续往上走，看看子类：AspectJAwareAdvisorAutoProxyCreator。发现该类里面也没有跟BeanPostProcessor相关的逻辑，
+     所以，我们也可以暂时不看了。
+
+     接着往上走，看看子类：AnnotationAwareAspectJAutoProxyCreator，看到这个类里面重写了initBeanFactory方法，正好上面的
+     AbstractAdvisorAutoProxyCreator类里面的setBeanFactory方法会调用initBeanFactory方法，所以其实它最终调用的是子类
+     AnnotationAwareAspectJAutoProxyCreator里面的initBeanFactory方法。我们给initBeanFactory方法和父类
+     AbstractAdvisorAutoProxyCreator类里面的setBeanFactory方法都打上断点试试。
+
+     打好上面的断点之后，我们也给我们自己定义的配置类MainConfigOfAop里面的calculator()方法和logAspects()也打上断点，
+     然后启动测试类IOCTest_AOP开始debug，可以看到首先跳到的是AbstractAdvisorAutoProxyCreator类的setBeanFactory方法，
+     具体方法的调用栈是如何的呢？
+
+     我们首先打开调用栈，看看从testAOP()方法开始，
+     流程：A.) 传入配置类，创建IOC容器。可以看到第一步调用的是无参构造器this来创建对象，
+           B.) 然后调用register()方法把配置类注册进来，
+           C.) 最后调用refresh方法刷新容器。点进去，可以看到停在了registerBeanPostProcessors(beanFactory)这一步那里，
+               这一步的作用是注册bean的后置处理器来负责拦截bean的创建。点进去，我们可以看到具体的创建过程。
+               具体的创建步骤为：
+                1.)先获取到IOC容器中和已经定义了的需要创建的所有后置处理器（此时还只是一些bean的定义信息，还没有真正的
+                   创建对象），这些后置处理器主要是容器中默认的后置处理器和我们自己定义的后置处理器（类似于通过
+                   @EnableAspectJAutoProxy注解注入的AnnotationAwareAspectJAutoProxyCreator后置处理器），可以看到有
+                   处理Autowired注解的后置处理器，处理Required注解的后置处理器，和一些普通注解的后置处理器，
+                   以及一个叫internalAutoProxyCreator的后置处理器；
+                 2.）registerBeanPostProcessors方法里有一行：beanFactory.addBeanPostProcessor，可以看到，它还会往容器中
+                    加入别的BeanPostProcessor；
+                 3.）优先注册实现了PriorityOrdered接口的BeanPostProcessor；
+                 4.）再给容器中注册实现了Ordered接口的BeanPostProcessor；
+                 5.）最后注册没有实现优先级接口的BeanPostProcessor。
+                 6.）获取bean(即BeanPostProcessor)，如果获取不到的话，那么就注册BeanPostProcessor，实际上就是创建
+                     BeanPostProcessor对象，并保存在容器中。（具体的方法调用为：
+                     registerBeanPostProcessors -> getBean -> AbstractBeanFactory.doGetBean -> getSingleton(第317行) ->
+                     createBean(AbstractBeanFactory的第320行)
+                     这里重点关注internalAutoProxyCreator这个后置处理器是如何创建的？可以分为以下几步：
+                          a.)创建bean实例：具体调用过程为：
+                                 AbstractAutowireCapableBeanFactory.doCreateBean(第529行) -> createBeanInstance();
+                          b.)调用populateBean方法(第575行)给各种属性赋值；
+                          c.)初始化bean，即initializeBean()方法来完成。
+                              接下来我们又来看看初始化bean的流程：
+                                  I). AbstractAutowireCapableBeanFactory.initializeBean() -> invokeAwareMethods()
+                                     而invokeAwareMethods方法（第1372行）是用来处理Aware接口的方法回调的，调用
+                                      setBeanFactory方法，因为我们创建的这个后置处理器也实现了BeanFactoryAware接口；
+                                  II). invokeAwareMethods方法的下面有applyBeanPostProcessorsBeforeInitialization方法，
+                                       它的作用是应用后置处理器的postProcessBeforeInitialization()方法；
+                                  III）. invokeInitMethods方法（第1471行）：执行自定义的初始化方法，我们可以通过@Bean注解
+                                       定义的时候指定一下初始化方法和销毁方法；
+                                  IV）.applyBeanPostProcessorsAfterInitialization方法，它的作用是应用后置处理器的
+                                      postProcessAfterInitialization()方法；
+                            d.)BeanPostProcessor(在这就是以AnnotationAwareAspectJAutoProxyCreator后置处理器为例)创建成功，
+                               并且调用了该后置处理器的initBeanFactory方法完成一些操作。
+                  7.）把BeanPostProcessor注册到BeanFactory中，即调用:beanFactory.addBeanPostProcessor()方法(第254行)
+
+============================以上是创建和注册AnnotationAwareAspectJAutoProxyCreator后置处理器的过程========================
+
+再次启动debug模式，可以看到还是会来到setBeanFactory方法，一路放行，直到来到了postProcessBeforeInstantiation()方法，可以看到
+这个方法名和我们上面的postProcessBeforeInitialization()方法很像，可以看到AbstractAutoProxyCreator实现了
+SmartInstantiationAwareBeanPostProcessor接口，可以看到它是一种后置处理器。也就是说，我们之前提到的：
+
+      AnnotationAwareAspectJAutoProxyCreator就是SmartInstantiationAwareBeanPostProcessor这种类型的后置处理器。
+
+为啥调用的是postProcessBeforeInstantiation()方法呢？我们仍然可以从testAOP()方法开始，此时的refresh方法调用的就是
+finishBeanFactoryInitialization(beanFactory)了，而不再是之前的registerBeanPostProcessors(beanFactory)了，该方法是用来
+实例化剩下的单实例bean。接上面的C.)步骤，我们可以看到下面的流程：
+       D.) 完成BeanFactory的初始化工作，即：finishBeanFactoryInitialization方法。其实就是来创建剩下的单实例bean。
+           为什么叫剩下的呢？因为一些BeanPostProcessor这些组件已经在上面的registerBeanPostProcessors()步骤里面已经创建过了。
+           它的步骤是：
+            1.）遍历获取容器中所有的bean，依次创建对象。创建对象的具体调用过程为：
+               getBean -> doGetBean -> getSingleton(是318行的，不是246行的) ->
+               createBean(AbstractAutowireCapableBeanFactory的第459行) -> resolveBeforeInstantiation(第487行)
+               a.) 根据246行的getSingleton可以知道，容器会优先从缓存中获取bean，如果能获取到的话，那么说明bean是之前被创建过的，
+                  现在直接拿来使用即可，如果缓存中没有的话，那么才通过318行的getSingleton来创建。由此可见，只要是创建好的bean，
+                  都会被缓存起来。
+               b.) createBean方法用来创建bean，resolveBeforeInstantiation方法是用来解析BeforeInstantiation，它希望后置处理器
+                   在此能返回一个代理对象，如果能返回的话，那么就是用代理对象，如果不能的话，就调用下面的doCreateBean()
+                   方法（第498行），然后就和上面的C.)6.)里面的流程。这里是真正的创建一个bean实例。
+                   我们接着看看resolveBeforeInstantiation方法，后置处理器先尝试返回代理对象，具体的源码为：
+                   	bean = applyBeanPostProcessorsBeforeInstantiation(targetType, beanName);
+                    if (bean != null) {
+                   	bean = applyBeanPostProcessorsAfterInitialization(bean, beanName);
+                   	}
+                   applyBeanPostProcessorsBeforeInstantiation方法的作用是：先得到所有的后置处理器，如果这个后置处理器是
+                   InstantiationAwareBeanPostProcessor类型的，就执行postProcessBeforeInstantiation方法。
+                   由此，我们可以得到两种后置处理器之间的差别：
+                   【BeanPostProcessor是在bean对象创建完成，初始化的前后调用的，而InstantiationAwareBeanPostProcessor是在
+                     创建bean实例之前先尝试用后置处理器返回对象的，如果是返回不了代理对象，才会执行doCreateBean()方法创建bean。
+                     也就是说，AnnotationAwareAspectJAutoProxyCreator会在任何bean创建之前先尝试返回bean的实例，还有一种说法，
+                     AnnotationAwareAspectJAutoProxyCreator在创建所有的bean之前会有一个拦截，因为它是
+                     InstantiationAwareBeanPostProcessor类型的后置处理器，会执行applyBeanPostProcessorsBeforeInstantiation
+                     方法来负责拦截】
+
+
+

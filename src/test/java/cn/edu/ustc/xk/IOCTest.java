@@ -37,7 +37,8 @@ public class IOCTest {
     public void test02() {
         /**
          *       // 在这加载的是MyConfig2这个类的信息
-         *         AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext(MyConfig2.class);
+         *         AnnotationConfigApplicationContext applicationContext =
+         *                      new AnnotationConfigApplicationContext(MyConfig2.class);
          *         String[] definitionNames = applicationContext.getBeanDefinitionNames();
          *         for (String definitionName: definitionNames) {
          *             System.out.println(definitionName);
