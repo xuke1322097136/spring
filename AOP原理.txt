@@ -119,5 +119,89 @@ finishBeanFactoryInitialization(beanFactory)了，而不再是之前的registerB
                      InstantiationAwareBeanPostProcessor类型的后置处理器，会执行applyBeanPostProcessorsBeforeInstantiation
                      方法来负责拦截】
 
+ AnnotationAwareAspectJAutoProxyCreator -> InstantiationAwareBeanPostProcessor的作用：
+ 1. 每一个bean创建之前，调用AbstractAutoProxyCreator.postProcessorsBeforeInstantiation()方法(第246行)：
+     为了研究该方法的最用，我们重点关注的是我们自己定义的两个bean:MathCalculator和LogAspect的创建：
+    a.)判断当前bean是否位于adviseBeans中，其中，adviseBeans的意思是增强的bean，因为业务逻辑类MathCalculator里面的方法是需要
+        切面类LogAspect来切的，所以要执行MathCalculator不能像以前那么简单了，所以说它需要增强。
+    b.)判断当前bean是否是基础类型的Advice/Pointcut/Advisor/AopInfrastructureBean，或者是切面（即被@Aspect注解标注的），
+       这一部分逻辑在isInfrastructureClass()方法里面实现；
+    c.) 是否需要跳过，这一部分逻辑由shouldSkip()方法（AbstractAutoProxyCreator类的第246行）来实现，具体的实现在
+        AspectJAwareAdvisorAutoProxyCreator.shouldSkip()来完成；
+        I） 获取到候选的增强器。所谓的增强器，其实就是切面类LogAspects里面通知方法(logStart/logEnd/logReturn/logException)，
+            保存在List<Advisor> candidateAdvisors里面，其中，每一个通知方法的增强器的类型都是
+            InstantiationModelAwareBeanPointcutAdvisor。判断每一个增强器是否是AspectJPointcutAdvisor类型的，如果是该类型
+            的话，则返回true。
+        II）显然，我们这是不满足判断的，所以会跳到后面的super.shouldSkip方法，来继续调用父类的shouldSkip
+            方法（视频里的源码父类的shouldSkip是永远返回false，我们这好像不是，可以看到这里不同版本间的差异了）。
+ 2. 调用我们自己的MainConfigOfAop.calculator()方法来创建bean；
+ 3. 创建完对象之后，调用AbstractAutoProxyCreator.postProcessAfterInitialization()方法，注意到该方法里面调用了一个叫
+     wrapIfNecessary()的方法，点进去查看该方法，来到AbstractAutoProxyCreator的第349行，它的过程主要是：
+     a.) 获取当前bean的所有增强器（通知方法），即会找到MathCalculator这个类的所有增强器。getAdvicesAndAdvisorsForBean方法
+         首先会找到所有的候选增强器，接着在候选增强器中找到当前bean能使用的增强器，最后回怼增强器进行排序；
+     b.）如果我们的增强器是存在的，不为null的话，表明我们的bean是需要增强的，那么它会在advisedBeans中保存当前bean，表示
+         当前bean已经被增强处理过了（具体逻辑在AbstractAutoProxyCreator第351行）；
+     c.）接下来是很重要的一步：调用createProxy给当前bean(在这是MathCalculator)创建代理对象:
+         I).  获取到所有的增强器（即通知方法）；（第463行）
+         II）. 保存到代理工厂proxyFactory中；（第464行）
+         III). 创建代理对象。（AbstractAutoProxyCreator的第473行），通过调用DefaultAopProxyFactory.createAopProxy来创建
+               代理对象，总共有两种形式的代理对象：JdkDynamicAopProxy（Jdk的动态代理）/ObjenesisCglibAopProxy（cglib的动态
+               代理），这个是由spring来自动决定的，当然，我们也可以强制规定使用哪一种动态代理。
+      d.) 给容器中返回的是当前组件（MathCalculator）使用cglib增强了的代理对象。
+      e.）以后我们的组件(MathCalculator)要来执行divide方法，即 IOCTest_AOP类里面的div方法都是由动态代理对象来执行的，
+          所以那些通知方法也可以由该代理对象来负责执行。
+  4. 接下来我们来看看具体的通知方法和我们的divide方法是如何执行的，我们可以在IOCTest_AOP类的calculator.divide(1，1)上打一个断点，
+     前面的那些断点我们已经看过了，就直接放过，直到该断点，在step into进去看流程之前，我们可以看到calculator对象里面的一些属性，
+     可以看到它确实是被cglib增强过的对象，而且该对象里面保存着详细信息，如：增强器/目标对象等信息。接着我们step into进去看流程，
+     a.) 首先它会来到CglibAopProxy.intercept()（第660行），顾名思义，可以看到该方法其实是一个拦截方法，它的作用是拦截目标方法
+         divide()的执行的；
+     b.) 来到第674行代码，可以看到它会根据ProxyFactory(advised的类型就是ProxyFactory)获取到将要执行的目标方法的拦截器链：
+          List<Object> chain = this.advised.getInterceptorsAndDynamicInterceptionAdvice(method, targetClass);
+          下面看看如何创建的拦截器链？
+          I） 来到DefaultAdvisorChainFactory.getInterceptorsAndDynamicInterceptionAdvice看看如何实现的，它会利用一个
+              List<Object> interceptorList用来保存所有拦截器，有一个细节，就是这个ArrayList的长度是固定的，它取的是我们之前的
+              增强器的长度，按道理来讲，我们只有4个增强器，但是还有一个spring默认的增强器（ExposeInvocationInterceptor），
+              所以advisors.length其实是5；
+           II）遍历所有的增强器，将它们转化为interceptors（不管是PointcutAdvisor/IntroductionAdvisor还是别的类型的增强器，
+               都有一段公共的代码），具体的代码为：
+                   Interceptor[] interceptors = registry.getInterceptors(advisor);
+           III）如何转化为Interceptor[] interceptors的呢？我们可以看看getInterceptors的逻辑，首先如果该增强器是
+                 MethodInterceptor类型的话，则直接添加到集合当中；相反，如果不是的话，则使用AdvisorAdapter将增强器转化为
+                 MethodInterceptor类型，转换完成之后添加到集合中，最后将集合转换为数组。
+     c.) 根据第679行注释的提示可以知道，如果没有拦截器链（拦截器链的意思其实就是之前的每一个通知方法或者说是增强器，只是现在
+         又被重新包装成了一个一个的拦截器MethodInterceptor），那么将直接调用目标方法；
+     d.) 如果有拦截器链的话，它会将需要执行的目标对象/目标方法/拦截器链等信息传入，创建一个CglibMethodInvocation对象，并调用
+         它的proceed()方法；
+     e.) 拦截器的出发流程：整个拦截器链的执行是如何完成，接下来我们看看方法CglibMethodInvocation.proceed()方法是如何执行的？
+          I)它会跳到ReflectiveMethodInvocation.proceed()方法，可以看到它会利用currentInterceptorIndex记录当前拦截器链的索引
+            位置，而interceptorsAndDynamicMethodMatchers.size()的总大小一直为上面提到的5。如果没有拦截器执行目标方法(-1=0-1)
+            或者拦截器的索引来到了拦截器数组-1大小(在这是4=5-1)一样的时候，即执行到了最后一个拦截器的时候，那么此时将调用
+            invokeJoinpoint()来执行目标方法。
+           II）从拦截器链中获取到每一个拦截器，该拦截器会执行Invoke方法，然后每一个拦截器会等到下一个拦截器执行完毕之后，
+           该拦截器才会接着往下执行。通过拦截链机制来保证通知方法与我们业务逻辑类里的目标方法的执行顺序。
+           （详细过程参见下面：ReflectiveMethodInvocation.proceed()方法的执行流程）
+
+        ReflectiveMethodInvocation.proceed()方法的执行流程：
+        总共有5个拦截器，第一个：ExposeInvocationInterceptor会先调用invoke(this)方法（第186行），this对象其实就是
+        CglibMethodInvocation，然后invoke方法会跳到ExposeInvocationInterceptor.invoke方法来执行，该方法里面接着会
+        调用proceed方法，然后又跳回到 ReflectiveMethodInvocation.proceed()方法，每执行一次proceed()方法，
+        currentInterceptorIndex索引加1。接着它会来到第二个拦截器，同理，下面的第二个：AspectJAfterThrowingAdvice/第三个：
+        AfterReturningAdviceInterceptor/第四个：AspectJAfterAdvice都是上面的流程，只有来到了第五个：
+        MethodBeforeAdviceInterceptor，它在调用invoke方法的时候，会调用before方法来执行前置通知，即@Before注解标注的方法，
+        然后它也会调用proceed方法，跳到ReflectiveMethodInvocation.proceed()方法之后，此时的条件：
+            this.currentInterceptorIndex == this.interceptorsAndDynamicMethodMatchers.size() - 1
+         已经满足了，所以就会调用invokeJoinpoint()方法，即调用我们的目标方法divide()方法。目标方法执行完之后，
+         MethodBeforeAdviceInterceptor的所有方法(invoke和proceed方法)都执行完了，由于上面是嵌套的，所以此时相当于第4个
+         拦截器AspectJAfterAdvice的proceed方法就调用完了，可以看到该拦截器AspectJAfterAdvice.invoke方法里是通过finally代码块
+         来调用通知方法的，即，此时调用后置通知方法，即 @After注解标注的方法。接着回到上一层，相当于上一层的proceed方法执行完了，
+         注意：此时需要区分结果有没有异常的情况发生了，如果没有异常的话，那么将会回到第三个拦截器AfterReturningAdviceInterceptor
+         的invoke方法，可以看到这个AfterReturningAdviceInterceptor.invoke方法里是抛了异常的，只有该invoke方法里的proceed()
+         其实就是一个放行的方法，如果该proceed方法没有任何问题，它才会执行后面的afterReturning方法，否则将会抛出异常，交给
+         上层处理。如果结果抛出了异常，那么将会直接回到第二个拦截器AspectJAfterThrowingAdvice的invoke方法，可以看到该类的
+         invoke方法是捕获异常的，然后执行异常通知，即执行@AfterThrowing注解标注的方法。
+
+
+
+
 
 
