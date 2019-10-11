@@ -18,7 +18,7 @@ AOP原理：（我们结合LogAspects/MathCalculator/MainConfigOfAop这三个类
               -》 AbstractAutoProxyCreator
                  -》 SmartInstantiationAwareBeanPostProcessor，BeanFactoryAware(XXXBeanPostProcessor是我们比较熟悉的)
      接下来，我们就关注这个BeanPostProcessor，所谓BeanPostProcessor其实就是bean完成初始化前后所做的事情。可以参见我们之前的
-     MyBeanPostProcessor和MainConfigOfLifeCycle里面怼后置处理器的解释。而BeanFactoryAware的作用是自动注入BeanFactory的。
+     MyBeanPostProcessor和MainConfigOfLifeCycle里面对后置处理器的解释。而BeanFactoryAware的作用是自动注入BeanFactory的。
      下面我们分析源码的时候，应该是从AbstractAutoProxyCreator开始，而不是直接就在AnnotationAwareAspectJAutoProxyCreator里面
      打断点，因为AbstractAutoProxyCreator才是离后置处理器最近的，一般后置处理器里面的方法在该类中也才会有，相反，你如果直接去
      找AnnotationAwareAspectJAutoProxyCreator类的话，你不知道断点打在哪里。
