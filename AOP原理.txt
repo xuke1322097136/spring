@@ -209,7 +209,27 @@ finishBeanFactoryInitialization(beanFactory)了，而不再是之前的registerB
          上层处理。如果结果抛出了异常，那么将会直接回到第二个拦截器AspectJAfterThrowingAdvice的invoke方法，可以看到该类的
          invoke方法是捕获异常的，然后执行异常通知，即执行@AfterThrowing注解标注的方法。
 
-
+AOP原理总结：
+  1）使用@EnableAspectJAutoProxy注解开启AOP功能；
+  2）@EnableAspectJAutoProxy注解会给容器中注册一个组件：AnnotationAwareAspectJAutoProxyCreator；
+  3）AnnotationAwareAspectJAutoProxyCreator其实也是一个后置处理器，即也是BeanPostProcessor的一个子类，
+     只是它跟一般的BeanPostProcessor的执行时机不同，它主要在refresh方法的registerBeanPostProcessors()步骤里完成，而一般的
+     后置处理器是在finishBeanFactoryInitialization方法里发挥作用，负责在bean初始化前后发挥作用；
+  4）容器创建过程：
+        a.）registerBeanPostProcessors()方法注册后置处理器，创建AnnotationAwareAspectJAutoProxyCreator对象；
+        b.）finishBeanFactoryInitialization方法来负责初始化剩下的单实例bean：
+           I）创建业务组件和切面组件；
+           II）AnnotationAwareAspectJAutoProxyCreator拦截组件的创建过程；
+           III）组件创建完成之后，判断组建是否需要增强。如果需要增强的话，那么会被包装成增强器(Advisor)，
+               并给业务逻辑组件创建一个代理对象。
+        c.) 执行目标方法：
+            I）代理对象执行目标方法；
+            II）CglibAopProxy.intercept()方法拦截目标方法：
+                A.)得到目标方法的拦截器链（上述的增强器会被再次包装成拦截器链MethodInterceptor数组）；
+                B.)利用拦截器链的链式机制，一次纪念如每一个 拦截器进行执行；
+                C.)执行效果为两种：
+                    正常执行：前置通知->目标方法->后置通知->返回通知；
+                    出现异常：前置通知->目标方法->后置通知->异常通知；
 
 
 
