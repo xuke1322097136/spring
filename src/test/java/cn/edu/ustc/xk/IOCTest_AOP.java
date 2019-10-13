@@ -1,7 +1,7 @@
 package cn.edu.ustc.xk;
 
 import cn.edu.ustc.xk.aop.MathCalculator;
-import cn.edu.ustc.xk.config.MainConfigOfAop;
+import cn.edu.ustc.xk.aop.MainConfigOfAop;
 import org.junit.Test;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 

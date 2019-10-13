@@ -1,7 +1,5 @@
-package cn.edu.ustc.xk.config;
+package cn.edu.ustc.xk.aop;
 
-import cn.edu.ustc.xk.aop.LogAspects;
-import cn.edu.ustc.xk.aop.MathCalculator;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
