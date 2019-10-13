@@ -65,7 +65,8 @@ AOP原理：（我们结合LogAspects/MathCalculator/MainConfigOfAop这三个类
                      这里重点关注internalAutoProxyCreator这个后置处理器是如何创建的？可以分为以下几步：
                           a.)创建bean实例：具体调用过程为：
                                  AbstractAutowireCapableBeanFactory.doCreateBean(第529行) -> createBeanInstance();
-                          b.)调用populateBean方法(第575行)给各种属性赋值；
+                          b.)调用populateBean方法(第575行)给各种属性赋值；【这里面InstantiationAwareBeanPostProcessor又
+                             发挥作用了，在真正的赋值操作(applyPropertyValues()方法)之前起作用】
                           c.)初始化bean，即initializeBean()方法来完成。
                               接下来我们又来看看初始化bean的流程：
                                   I). AbstractAutowireCapableBeanFactory.initializeBean() -> invokeAwareMethods()
@@ -79,7 +80,8 @@ AOP原理：（我们结合LogAspects/MathCalculator/MainConfigOfAop这三个类
                                       postProcessAfterInitialization()方法；
                             d.)BeanPostProcessor(在这就是以AnnotationAwareAspectJAutoProxyCreator后置处理器为例)创建成功，
                                并且调用了该后置处理器的initBeanFactory方法完成一些操作。
-                  7.）把BeanPostProcessor注册到BeanFactory中，即调用:beanFactory.addBeanPostProcessor()方法(第254行)
+                  7.）把BeanPostProcessor注册到BeanFactory中，即调用:beanFactory.addBeanPostProcessor()方法(第254行)，
+                      即缓存起来。
 
 ============================以上是创建和注册AnnotationAwareAspectJAutoProxyCreator后置处理器的过程========================
 
@@ -98,12 +100,16 @@ finishBeanFactoryInitialization(beanFactory)了，而不再是之前的registerB
             1.）遍历获取容器中所有的bean，依次创建对象。创建对象的具体调用过程为：
                getBean -> doGetBean -> getSingleton(是318行的，不是246行的) ->
                createBean(AbstractAutowireCapableBeanFactory的第459行) -> resolveBeforeInstantiation(第487行)
-               a.) 根据246行的getSingleton可以知道，容器会优先从缓存中获取bean，如果能获取到的话，那么说明bean是之前被创建过的，
-                  现在直接拿来使用即可，如果缓存中没有的话，那么才通过318行的getSingleton来创建。由此可见，只要是创建好的bean，
-                  都会被缓存起来。
+               a.) 根据246行的getSingleton可以知道，【该方法的作用是：容器优先从缓存中获取bean】，如果能获取到的话，
+                   那么说明bean是之前被创建过的，现在直接拿来使用即可，如果缓存中没有的话，那么才通过318行的
+                   getSingleton来创建。由此可见，只要是创建好的bean，都会被缓存起来。
                b.) createBean方法用来创建bean，resolveBeforeInstantiation方法是用来解析BeforeInstantiation，它希望后置处理器
-                   在此能返回一个代理对象，如果能返回的话，那么就是用代理对象，如果不能的话，就调用下面的doCreateBean()
+                   在此能返回一个代理对象，如果能返回的话，那么就是用代理对象！！如果不能的话，就调用下面的doCreateBean()
                    方法（第498行），然后就和上面的C.)6.)里面的流程。这里是真正的创建一个bean实例。
+               c.)创建完bean之后，容器会将它缓存起来，即添加到一个叫【singletonObjects】属性里面。这个属性其实就是一个Map。
+                  所以，到底什么是IOC容器？IOC容器其实就是这些Map，这些Map里面保存了我们创建的所有组件以及IOC的一些其他信息，
+                  如环境信息等等。
+
                    我们接着看看resolveBeforeInstantiation方法，后置处理器先尝试返回代理对象，具体的源码为：
                    	bean = applyBeanPostProcessorsBeforeInstantiation(targetType, beanName);
                     if (bean != null) {
@@ -111,10 +117,13 @@ finishBeanFactoryInitialization(beanFactory)了，而不再是之前的registerB
                    	}
                    applyBeanPostProcessorsBeforeInstantiation方法的作用是：先得到所有的后置处理器，如果这个后置处理器是
                    InstantiationAwareBeanPostProcessor类型的，就执行postProcessBeforeInstantiation方法。
-                   由此，我们可以得到两种后置处理器之间的差别：
+
+                   由此，我们可以得到两种后置处理器(InstantiationAwareBeanPostProcessor其实是BeanPostProcessor的子接口)
+                   之间的差别：
                    【BeanPostProcessor是在bean对象创建完成，初始化的前后调用的，而InstantiationAwareBeanPostProcessor是在
-                     创建bean实例之前先尝试用后置处理器返回对象的，如果是返回不了代理对象，才会执行doCreateBean()方法创建bean。
-                     也就是说，AnnotationAwareAspectJAutoProxyCreator会在任何bean创建之前先尝试返回bean的实例，还有一种说法，
+                     创建bean实例之前，它的执行时机是创建bean之前，在BeanPostProcessor之前执行！先尝试用后置处理器返回对象的，
+                     如果是返回不了代理对象，才会执行doCreateBean()方法创建bean。也就是说，
+                     AnnotationAwareAspectJAutoProxyCreator会在任何bean创建之前先尝试返回bean的实例，还有一种说法，
                      AnnotationAwareAspectJAutoProxyCreator在创建所有的bean之前会有一个拦截，因为它是
                      InstantiationAwareBeanPostProcessor类型的后置处理器，会执行applyBeanPostProcessorsBeforeInstantiation
                      方法来负责拦截】
