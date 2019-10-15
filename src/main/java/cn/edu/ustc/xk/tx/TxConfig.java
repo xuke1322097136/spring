@@ -23,7 +23,7 @@ import javax.sql.DataSource;
  *       4. 利用注解@EnableTransactionManagement 开启基于注解的事务管理功能；
  *       5. 在容器中注册事务管理器。
  *
- *   原理：其实和分析@EnableAspectJAutoProxy一样的。
+ *   原理：其实和分析@EnableAspectJAutoProxy一样的，从@EnableTransactionManagement开始分析：
  *       1. 首先从该注解出发，发现它会利用TransactionManagementConfigurationSelector给容器中导入两个组件：
  *          a.) AutoProxyRegistrar;
  *          b.) ProxyTransactionManagementConfiguration
