@@ -1,0 +1,24 @@
+#用来记录Spring的整个源码流程，咱们主要关注点的是refresh方法里面的每一步实现。
+第一步：prepareRefresh()方法的作用是刷新前的预处理工作：
+       1. initPropertySources()：初始化一些属性设置，它是由子类来自定义个性化的属性的；
+       2. getEnvironment().validateRequiredProperties()：校验属性的合法性；
+       3. this.earlyApplicationEvents = new LinkedHashSet<>()：用来保存容器中的游戏额早期事件，以后利用我们的事件派发器将
+           这些事件派发出去。
+第二步：obtainFreshBeanFactory()：获取BeanFactory。
+        1. refreshBeanFactory()：刷新Bean工厂。主要工作是创建了一个BeanFactory并设置Id值，参见
+               GenericApplicationContext的源码：this.beanFactory = new DefaultListableBeanFactory();（第111行）
+        2. getBeanFactory()：创建BeanFactory并返回它，该BeanFactory就是直接返回上面创建的DefaultListableBeanFactory对象。
+第三步： prepareBeanFactory：BeanFactory的预准备工作，其实就是对BeanFactory一些值进行设置。
+        1. 设置BeanFactory的类加载器/支持的表达式等等；
+        2. 添加部分BeanPostProcessor，如ApplicationContextAwareProcessor：它的作用其实就是在bean初始化以后，判断bean是否
+           实现了ApplicationContextAware接口的；
+        3. 设置忽略的自动装配的接口，如EnvironmentAware/EmbeddedValueResolverAware...等等；
+        4. 注册可以解析的自动装配，也就是说，我们可以在任何组件里面Autowired（自动注入）这些类都是可以的，如BeanFactory/
+           ResourceLoader/ApplicationEventPublisher/ApplicationContext等；
+        5. 添加部分BeanPostProcessor，如ApplicationListenerDetector；
+        6. 添加编译时的AspectJ支持，第657到660行的代码；
+        7. 给BeanFactory中注册一些组件，如：environment【ConfigurableEnvironment类型】/systemProperties【Map<String, Object>
+         类型】/systemEnvironment【Map<String, Object>类型】，如果我们以后要用的话，也可以直接Autowired。
+第三步： postProcessBeanFactory(beanFactory)：BeanFactory准备工作完成以后进行的后置处理工作。我们可以发现在
+         AbstractApplicationContext类中是一个空实现，子类可以通过重写这个方法来在BeanFactory创建并预准备完成后做进一步的设置。
+============================================以上是BeanFactory的创建及预准备工作===========================================
