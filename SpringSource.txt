@@ -2,7 +2,7 @@
 第一步：prepareRefresh()方法的作用是刷新前的预处理工作：
        1. initPropertySources()：初始化一些属性设置，它是由子类来自定义个性化的属性的；
        2. getEnvironment().validateRequiredProperties()：校验属性的合法性；
-       3. this.earlyApplicationEvents = new LinkedHashSet<>()：用来保存容器中的游戏额早期事件，以后利用我们的事件派发器将
+       3. this.earlyApplicationEvents = new LinkedHashSet<>()：用来保存容器中注册的早期事件，以后利用我们的事件派发器将
            这些事件派发出去。
 第二步：obtainFreshBeanFactory()：获取BeanFactory。
         1. refreshBeanFactory()：刷新Bean工厂。主要工作是创建了一个BeanFactory并设置Id值，参见
