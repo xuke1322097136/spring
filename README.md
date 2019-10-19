@@ -17,4 +17,6 @@ https://www.cnblogs.com/aspirant/p/9082858.html
 BeanFactory里面包含了BeanPostProcessor和一些跟系统环境/系统属性相关的bean，
 BeanFactoryPostProcessor又分为两大类，一种是它的子类，一种是它自己这种类型的，这两个类是在beanFactory的
 标准初始化之后使用。此时bean的定义都已经保存加载到beanFactory中了，但是还没有创建bean的实例。
-
+   
+接下来需要做的事情：梳理写的这些小demo，自己认认真真的理解里面的原理，多多debug。还有很多细节可以根据面试题来学习，
+                   例如：动态代理（cglib/jdk）的区别以及使用场景。
