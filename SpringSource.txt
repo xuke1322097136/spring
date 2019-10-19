@@ -19,6 +19,63 @@
         6. 添加编译时的AspectJ支持，第657到660行的代码；
         7. 给BeanFactory中注册一些组件，如：environment【ConfigurableEnvironment类型】/systemProperties【Map<String, Object>
          类型】/systemEnvironment【Map<String, Object>类型】，如果我们以后要用的话，也可以直接Autowired。
-第三步： postProcessBeanFactory(beanFactory)：BeanFactory准备工作完成以后进行的后置处理工作。我们可以发现在
+第四步： postProcessBeanFactory(beanFactory)：BeanFactory准备工作完成以后进行的后置处理工作。我们可以发现在
          AbstractApplicationContext类中是一个空实现，子类可以通过重写这个方法来在BeanFactory创建并预准备完成后做进一步的设置。
 ============================================以上是BeanFactory的创建及预准备工作===========================================
+第五步：invokeBeanFactoryPostProcessors(beanFactory)：执行BeanFactoryPostProcessor，BeanFactoryPostProcessor是BeanFactory
+        的后置处理器，在BeanFactory标准初始化之后执行的。这一步的原理其实可以结合IOCTest_Extend/ExtendConfig/
+        MyBeanFactoryPostProcessor/MyBeanDefinitionRegistryPostProcessor中介绍的原理来看。【AOP原理.txt】一文中也有简单介绍，
+        我们在这再来回顾一下，主要看一下BeanFactoryPostProcessor接口以及它的子接口：BeanDefinitionRegistryPostProcessor
+        【可以用来给容器中额外添加组件，它的优先级比BeanFactoryPostProcessor接口要高】：
+        1. 会来到PostProcessorRegistrationDelegate.invokeBeanFactoryPostProcessors()方法，其实它就是分别调用每个
+           BeanFactoryPostProcessor的postProcessBeanDefinitionRegistry方法，具体过程为：
+           a.) 获取所有的BeanDefinitionRegistryPostProcessor；
+           b.) 判断这些BeanDefinitionRegistryPostProcessor有没有实现了PriorityOrdered接口的，有的话，那么会让它执行
+               invokeBeanDefinitionRegistryPostProcessors方法，点进去这个方法其实就是回调它们的
+               postProcessBeanDefinitionRegistry方法；
+           c.) 同理，判断BeanDefinitionRegistryPostProcessor有没有实现了Ordered接口，如果有的话，那么它也会回调
+               postProcessBeanDefinitionRegistry方法；
+           d.) 最后执行没有是实现任何优先级或者是接口顺序的BeanDefinitionRegistryPostProcessors。
+        2. 接着执行BeanFactoryPostProcessor接口里的postProcessor.postProcessBeanFactory(beanFactory)方法，具体的调用过程
+           和上面基本一致：
+           a.) 获取所有的BeanFactoryPostProcessor放置到postProcessorNames里面，然后会将这些postProcessorNames里面的这些
+               后置处理器根据优先级分门别类，分别放置到priorityOrderedPostProcessors/orderedPostProcessorNames/
+               nonOrderedPostProcessorNames里面；
+            b.) 和上面的意思基本是一样的，只是这里每一类后置处理器用了一个临时变量来存储，获取到priorityOrderedPostProcessors
+               ，然后调用它里面的postProcessBeanFactory()方法；
+            c.) 拿到orderedPostProcessorNames里面的后置处理器，调用postProcessBeanFactory()方法；
+            d.) 拿到nonOrderedPostProcessorNames里面的后置处理器，调用postProcessBeanFactory()方法。
+第六步：registerBeanPostProcessors(beanFactory)：注册BeanPostProcessors(bean的后置处理器)，它的作用是拦截bean的整个创建过程，
+       不同接口类型的BeanPostProcessor在bean创建前后所执行的时机是不一样的。
+       同样的，我们之前也分析过这一步，可以参考MainConfigOfLifeCycle/MyBeanPostProcessor以及【AOP原理.txt】一文的(2.C.6.c)
+       部分都有详细介绍，咱们在这再次回顾一下，具体步骤如下：
+       1. 获取到所有的BeanPostProcessor，这里需要注意的是它旗下有很多不同类型的BeanPostProcessor，常用的有：
+          DestructionAwareBeanPostProcessor/InstantiationAwareBeanPostProcessor/MergedBeanDefinitionPostProcessor，其实
+          前面两个BeanPostProcessor，我们都见过。
+          InstantiationAwareBeanPostProcessor在分析切面原理的时候也详细分析过了，可以参考【AOP原理.txt】一文。
+          DestructionAwareBeanPostProcessor其实我们也说过，它是用来执行bean的销毁方法的后置处理器，例如DisposableBean接口
+          里面的destroy方法就是由该后置处理器来负责执行的。DestructionAwareBeanPostProcessor有一个子类：
+          InitDestroyAnnotationBeanPostProcessor，它其实就是用来处理 @PostConstruct注解和@PreDestroy注解的。
+          【具体在MainConfigOfLifeCycle中有介绍】。注意： BeanFactoryPostProcessor接口和BeanPostProcessor并无任何继承关系。
+           a.) 获取到所有的BeanPostProcessor，然后将他们划分为4大类，通过PriorityOrdered和Ordered来指定优先级和顺序，然后将
+               它们分别存储到4个不同的临时变量中，和上面的BeanFactoryPostProcessor是不是差不多？分别有：
+                priorityOrderedPostProcessors/orderedPostProcessorNames/ nonOrderedPostProcessorNames/
+                internalPostProcessors。此外它会检查BeanPostProcessor是不是MergedBeanDefinitionPostProcessor类型的
+                后置处理器，如果是的话，它又会将该后置处理器添加到一个叫internalPostProcessors的临时变量中；
+           b.) 先注册PriorityOrdered优先级接口的BeanPostProcessor，调用的是registerBeanPostProcessors()方法完成注册，
+               所谓的注册，我们点进源码里可以看到，它其实就是将该BeanPostProcessor添加到BeanFactory中。源码见下面这一句：
+                         beanFactory.addBeanPostProcessor(postProcessor);
+           c.) 接着注册Ordered接口的BeanPostProcessor，分别添加到BeanFactory中；
+           d.) 继续注册all regular BeanPostProcessors，即，注册既没有实现PriorityOrdered，也没有实现Ordered接口的
+                BeanPostProcessor，其实就是注册存放在变量nonOrderedPostProcessorNames里面的BeanPostProcessor；
+           e.)  然后注册实现了MergedBeanDefinitionPostProcessor接口类型的后置处理器，即，注册的是存放在临时变量
+                internalPostProcessors里面的后置处理器。
+           f.)其实最后还注册了一个叫ApplicationListenerDetector的后置处理器，它的作用是调用postProcessAfterInitialization
+              方法，在bean创建完成初始化了之后，检查创建的这些bean是不是事件监听器ApplicationListener，如果是的话，就将
+               该bean添加到容器中。源码见下面这一句：
+                         this.applicationContext.addApplicationListener((ApplicationListener<?>) bean);
+
+
+
+
+

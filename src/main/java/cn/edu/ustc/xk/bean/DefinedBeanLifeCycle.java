@@ -11,7 +11,8 @@ import org.springframework.beans.factory.InitializingBean;
  *              这两种初始化方法的逻辑都是在invokeInitMethods方法【initializeBean()方法里面的一个小步骤】中执行。
  *      2. DisposableBean的执行时机是在applyBeanPostProcessorsAfterInitialization之后执行的，具体的逻辑也是
  *              在initializeBean()方法里面执行的，而且在该方法里面只是注册bean的销毁方法！！真正的销毁方法是在容器关闭
- *              之后使用的。
+ *              之后使用的。DisposableBean的destroy()方法是由DestructionAwareBeanPostProcessor这个后置处理器负责完成调用的，
+ *              具体可以参见DestructionAwareBeanPostProcessor的源码注释。
  *
  * Date: 2019-01-19
  * Time: 17:18
@@ -47,7 +48,7 @@ public class DefinedBeanLifeCycle implements InitializingBean, DisposableBean {
      * destroy方法来自于DisposableBean接口，他的调用时机也可以查看下面一段源注释：
      *      Invoked by the containing {@code BeanFactory} on destruction of a bean.
      *  意思是BeanFactory在销毁的时候会把这些单实例bean给我们调用destroy方法给销毁掉,
-     *  其实也就是在容器关闭的时候会调用该方法
+     *  其实也就是在容器关闭的时候会调用该方法。
      *
      * @throws Exception
      */
