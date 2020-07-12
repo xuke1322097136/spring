@@ -1,6 +1,8 @@
 package cn.edu.ustc.xk.bean;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
  * Created by xuke

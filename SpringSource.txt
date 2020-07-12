@@ -148,7 +148,7 @@
                                                InitializingBean.afterPropertiesSet()方法【DefinedBeanLifeCycle里面可以
                                                看到】/手动利用initMethod属性给bean指定初始化方法【MainConfigOfLifeCycle
                                                里面的LifeCycle这个bean就是利用的这种方式】，在
-                                               invokeCustomInitMethod(beanName, bean, mbd)这里完成调用;；
+                                               invokeCustomInitMethod(beanName, bean, mbd)这里利用反射机制完成调用;；
                                        （IV）调用applyBeanPostProcessorsAfterInitialization方法，执行后置处理器的
                                              BeanPostProcessor.beanPostProcessorsAfterInitialization方法.
                                  (e.) 调用registerDisposableBeanIfNecessary(beanName, bean, mbd)：【注册】bean的销毁方法，
