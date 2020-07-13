@@ -147,7 +147,7 @@ finishBeanFactoryInitialization(beanFactory)了，而不再是之前的registerB
  3. 创建完对象之后，调用AbstractAutoProxyCreator.postProcessAfterInitialization()方法，注意到该方法里面调用了一个叫
      wrapIfNecessary()的方法，点进去查看该方法，来到AbstractAutoProxyCreator的第349行，它的过程主要是：
      a.) 获取当前bean的所有增强器（通知方法），即会找到MathCalculator这个类的所有增强器。getAdvicesAndAdvisorsForBean方法
-         首先会找到所有的候选增强器，接着在候选增强器中找到当前bean能使用的增强器，最后回怼增强器进行排序；
+         首先会找到所有的候选增强器，接着在候选增强器中找到当前bean能使用的增强器，最后会对增强器进行排序；
      b.）如果我们的增强器是存在的，不为null的话，表明我们的bean是需要增强的，那么它会在advisedBeans中保存当前bean，表示
          当前bean已经被增强处理过了（具体逻辑在AbstractAutoProxyCreator第351行）；
      c.）接下来是很重要的一步：调用createProxy给当前bean(在这是MathCalculator)创建代理对象:
